@@ -33,6 +33,7 @@ public class Day2
                 'X' => 1,
                 'Y' => 2,
                 'Z' => 3,
+                _ => throw new ArgumentOutOfRangeException()
             };
             var score = matchScore + choiceScore;
             totalScore += score;
@@ -55,6 +56,7 @@ public class Day2
                 'X' => Score_Loss,
                 'Y' => Score_Draw,
                 'Z' => Score_Win,
+                _ => throw new ArgumentOutOfRangeException()
             };
             var choiceScore = (ParseOpponentHand(enemy), matchScore) switch
             {
@@ -66,7 +68,8 @@ public class Day2
                 (Hand.Paper, Score_Win) => Hand.Scissor,
                 (Hand.Scissor, Score_Loss) => Hand.Paper,
                 (Hand.Scissor, Score_Draw) => Hand.Scissor,
-                (Hand.Scissor, Score_Win) => Hand.Rock
+                (Hand.Scissor, Score_Win) => Hand.Rock,
+                _ => throw new ArgumentOutOfRangeException()
             };
 
             int score = matchScore + (int)choiceScore;
@@ -83,6 +86,7 @@ public class Day2
             'A' => Hand.Rock,
             'B' => Hand.Paper,
             'C' => Hand.Scissor,
+            _ => throw new ArgumentOutOfRangeException(nameof(c), c, null)
         };
     }
     enum Hand
