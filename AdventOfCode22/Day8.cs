@@ -8,85 +8,77 @@ public class Day8
     public async Task Part1()
     {
         var lines = await File.ReadAllLinesAsync("day8.txt");
-        List<List<int>> grid = new List<List<int>>();
+        var forest = ParseForest(lines);
+
+        foreach (IList<Tree> row in forest)
+        {
+            CalculateViewMinimumHeight(row, (t, h) => t.Left = h);
+            CalculateViewMinimumHeight(row.Reverse(), (t, h) => t.Right = h);
+        }
+
+        forest = Rotate(forest).ToList();
+
+        foreach (IList<Tree> row in forest)
+        {
+            CalculateViewMinimumHeight(row, (t, h) => t.Top = h);
+            CalculateViewMinimumHeight(row.Reverse(), (t, h) => t.Bottom = h);
+        }
+
+        var counter = forest.SelectMany(row => row)
+            .Count(tree => tree.Height > tree.Top
+                           || tree.Height > tree.Right
+                           || tree.Height > tree.Bottom
+                           || tree.Height > tree.Left);
+
+        Assert.Equal(1672, counter);
+    }
+
+    IEnumerable<List<Tree>> Rotate(List<List<Tree>> input)
+    {
+        for (int x = 0; x < input[0].Count; x++)
+        {
+            yield return Column(x).ToList();
+        }
+
+        IEnumerable<Tree> Column(int x)
+        {
+            for (int y = 0; y < input.Count; y++)
+            {
+                yield return input[y][x];
+            }
+        }
+    }
+
+    static void CalculateViewMinimumHeight(IEnumerable<Tree> row, Action<Tree, int> assign)
+    {
+        var currentMaxHeight = -1;
+        foreach (var tree in row)
+        {
+            var height = tree.Height;
+            assign(tree, currentMaxHeight);
+
+            currentMaxHeight = Math.Max(currentMaxHeight, height);
+        }
+    }
+
+    static List<List<Tree>> ParseForest(string[] lines)
+    {
+        List<List<Tree>> grid = new();
         foreach (var line in lines)
         {
-            var currentLine = new List<int>();
+            var currentLine = new List<Tree>();
             foreach (var c in line.ToCharArray())
             {
-                currentLine.Add(c - '0');
+                currentLine.Add(new Tree()
+                {
+                    Height = c - '0'
+                });
             }
+
             grid.Add(currentLine);
         }
 
-        var resultGrid = new List<List<GridElement>>();
-        for (int y = 0; y < grid.Count; y++)
-        {
-            var curentLine = new List<GridElement>();
-            resultGrid.Add(curentLine);
-            var leftHeight = -1;
-            for (int x = 0; x < grid[0].Count; x++)
-            {
-                var height = grid[y][x];
-                
-                curentLine.Add(new GridElement()
-                {
-                    Left = leftHeight,
-                    CurrentHeight = height
-                });
-
-                leftHeight = Math.Max(leftHeight, height);
-            }
-
-            var rightHeight = -1;
-            for (int x = curentLine.Count - 1; x >= 0; x--)
-            {
-                var height = grid[y][x];
-                resultGrid[y][x].Right = rightHeight;
-                rightHeight = Math.Max(rightHeight, height);
-            }
-        }
-
-        for (int x = 0; x < grid[0].Count; x++)
-        {
-            var topHeight = -1;
-            for (int y = 0; y < grid.Count; y++)
-            {
-                var height = grid[y][x];
-                resultGrid[y][x].Top = topHeight;
-                topHeight = Math.Max(topHeight, height);
-            }
-
-            var bottomHeight = -1;
-            for (int y = grid.Count - 1; y >= 0; y--)
-            {
-                var height = grid[y][x];
-                resultGrid[y][x].Bottom = bottomHeight;
-                bottomHeight = Math.Max(bottomHeight, height);
-            }
-        }
-
-        int counter = 0;
-        foreach (var line in resultGrid)
-        {
-            foreach (var lineElement in line)
-            {
-                if (lineElement.CurrentHeight <= lineElement.Top 
-                    && lineElement.CurrentHeight <= lineElement.Right 
-                    && lineElement.CurrentHeight <= lineElement.Bottom 
-                    && lineElement.CurrentHeight <= lineElement.Left)
-                {
-                    // not visible
-                }
-                else
-                {
-                    counter++;
-                    lineElement.Visible = true;
-                }
-            }
-        }
-
-        Assert.Equal(1672, counter);
+        return grid;
     }
 
     [Fact]
@@ -105,10 +97,10 @@ public class Day8
         }
 
         int[] treesInView;
-        var resultGrid = new List<List<GridElement>>();
+        var resultGrid = new List<List<Tree>>();
         for (int y = 0; y < grid.Count; y++)
         {
-            var curentLine = new List<GridElement>();
+            var curentLine = new List<Tree>();
             resultGrid.Add(curentLine);
 
             treesInView = new int[10];
@@ -116,10 +108,10 @@ public class Day8
             {
                 var height = grid[y][x];
 
-                curentLine.Add(new GridElement()
+                curentLine.Add(new Tree()
                 {
                     Left = treesInView[height],
-                    CurrentHeight = height
+                    Height = height
                 });
                 for (int h = 0; h < 10; h++)
                 {
@@ -181,13 +173,13 @@ public class Day8
         Assert.Equal(327180, bestScore);
     }
 
-    record GridElement
+    record Tree
     {
         public int Top { get; set; }
         public int Left { get; set; }
         public int Right { get; set; }
         public int Bottom { get; set; }
-        public int CurrentHeight { get; set; }
+        public int Height { get; set; }
         public bool Visible { get; set; }
     }
 }
