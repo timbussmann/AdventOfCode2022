@@ -7,9 +7,9 @@ public class Day8
     [Fact]
     public async Task Part1()
     {
-        var lines = await File.ReadAllLinesAsync("day8.txt");
-        var forest = ParseForest(lines);
+        var forest = ParseForest(await File.ReadAllLinesAsync("day8.txt"));
 
+        // unnecessarily "optimized" approach that only requires tracing each row/column once per direction rather than "raytracing" each individual tree.
         foreach (IList<Tree> row in forest)
         {
             CalculateViewMinimumHeight(row, (t, h) => t.Left = h);
@@ -18,7 +18,7 @@ public class Day8
 
         forest = Rotate(forest).ToList();
 
-        foreach (IList<Tree> row in forest)
+        foreach (var row in forest)
         {
             CalculateViewMinimumHeight(row, (t, h) => t.Top = h);
             CalculateViewMinimumHeight(row.Reverse(), (t, h) => t.Bottom = h);
@@ -33,7 +33,61 @@ public class Day8
         Assert.Equal(1672, counter);
     }
 
-    IEnumerable<List<Tree>> Rotate(List<List<Tree>> input)
+    [Fact]
+    public async Task Part2()
+    {
+        var forest = ParseForest(await File.ReadAllLinesAsync("day8.txt"));
+
+        foreach (var row in forest)
+        {
+            CalculateMaxViewDistance(row, (t, v) => t.Left = v);
+            CalculateMaxViewDistance(row.Reverse(), (t, v) => t.Right = v);
+        }
+
+        forest = Rotate(forest).ToList();
+
+        foreach (var row in forest)
+        {
+            CalculateMaxViewDistance(row, (t, v) => t.Top = v);
+            CalculateMaxViewDistance(row.Reverse(), (t, v) => t.Bottom = v);
+        }
+
+        var bestScore = forest.Aggregate(0, (current, line) => 
+            line.Select(lineElement => lineElement.Top * lineElement.Right * lineElement.Bottom * lineElement.Left)
+                .Prepend(current)
+                .Max());
+
+        Assert.Equal(327180, bestScore);
+    }
+
+    static void CalculateViewMinimumHeight(IEnumerable<Tree> row, Action<Tree, int> assign)
+    {
+        var currentMaxHeight = -1;
+        foreach (var tree in row)
+        {
+            var height = tree.Height;
+            assign(tree, currentMaxHeight);
+
+            currentMaxHeight = Math.Max(currentMaxHeight, height);
+        }
+    }
+
+    static void CalculateMaxViewDistance(IEnumerable<Tree> row, Action<Tree, int> assign)
+    {
+        var treesInView = new int[10];
+        foreach (var tree in row)
+        {
+            var height = tree.Height;
+            assign(tree, treesInView[height]);
+            // track view distance for each potential tree height
+            for (int h = 0; h < 10; h++)
+            {
+                treesInView[h] = h > height ? treesInView[h] + 1 : 1;
+            }
+        }
+    }
+
+    IEnumerable<IList<Tree>> Rotate(List<IList<Tree>> input)
     {
         for (int x = 0; x < input[0].Count; x++)
         {
@@ -49,21 +103,9 @@ public class Day8
         }
     }
 
-    static void CalculateViewMinimumHeight(IEnumerable<Tree> row, Action<Tree, int> assign)
+    static List<IList<Tree>> ParseForest(string[] lines)
     {
-        var currentMaxHeight = -1;
-        foreach (var tree in row)
-        {
-            var height = tree.Height;
-            assign(tree, currentMaxHeight);
-
-            currentMaxHeight = Math.Max(currentMaxHeight, height);
-        }
-    }
-
-    static List<List<Tree>> ParseForest(string[] lines)
-    {
-        List<List<Tree>> grid = new();
+        List<IList<Tree>> grid = new();
         foreach (var line in lines)
         {
             var currentLine = new List<Tree>();
@@ -81,98 +123,6 @@ public class Day8
         return grid;
     }
 
-    [Fact]
-    public async Task Part2()
-    {
-        var lines = await File.ReadAllLinesAsync("day8.txt");
-        List<List<int>> grid = new List<List<int>>();
-        foreach (var line in lines)
-        {
-            var currentLine = new List<int>();
-            foreach (var c in line.ToCharArray())
-            {
-                currentLine.Add(c - '0');
-            }
-            grid.Add(currentLine);
-        }
-
-        int[] treesInView;
-        var resultGrid = new List<List<Tree>>();
-        for (int y = 0; y < grid.Count; y++)
-        {
-            var curentLine = new List<Tree>();
-            resultGrid.Add(curentLine);
-
-            treesInView = new int[10];
-            for (int x = 0; x < grid[0].Count; x++)
-            {
-                var height = grid[y][x];
-
-                curentLine.Add(new Tree()
-                {
-                    Left = treesInView[height],
-                    Height = height
-                });
-                for (int h = 0; h < 10; h++)
-                {
-                    treesInView[h] = h > height ? treesInView[h] + 1 : 1;
-                }
-            }
-
-            treesInView = new int[10];
-            for (int x = curentLine.Count - 1; x >= 0; x--)
-            {
-                var height = grid[y][x];
-                resultGrid[y][x].Right = treesInView[height];
-                for (int h = 0; h < 10; h++)
-                {
-                    treesInView[h] = h > height ? treesInView[h] + 1 : 1;
-                }
-            }
-        }
-
-        for (int x = 0; x < grid[0].Count; x++)
-        {
-            treesInView = new int[10];
-            for (int y = 0; y < grid.Count; y++)
-            {
-                var height = grid[y][x];
-                resultGrid[y][x].Top = treesInView[height];
-                for (int h = 0; h < 10; h++)
-                {
-                    treesInView[h] = h > height ? treesInView[h] + 1 : 1;
-                }
-            }
-
-            treesInView = new int[10];
-            for (int y = grid.Count - 1; y >= 0; y--)
-            {
-                var height = grid[y][x];
-
-                resultGrid[y][x].Bottom = treesInView[height];
-                for (int h = 0; h < 10; h++)
-                {
-                    treesInView[h] = h > height ? treesInView[h] + 1 : 1;
-                }
-            }
-        }
-
-        int bestScore = 0;
-        foreach (var line in resultGrid)
-        {
-            foreach (var lineElement in line)
-            {
-                var score = lineElement.Top * lineElement.Right * lineElement.Bottom * lineElement.Left;
-                if (score > bestScore)
-                {
-                    bestScore = score;
-                }
-            }
-        }
-
-        Assert.Equal(327180, bestScore);
-    }
-
     record Tree
     {
         public int Top { get; set; }
@@ -180,6 +130,5 @@ public class Day8
         public int Right { get; set; }
         public int Bottom { get; set; }
         public int Height { get; set; }
-        public bool Visible { get; set; }
     }
 }
