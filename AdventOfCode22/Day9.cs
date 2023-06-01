@@ -47,12 +47,12 @@ public class Day9
     [Fact]
     public async Task Part2()
     {
+        // change to 2 to use this approach to solve Part 1
         int numberOfKnots = 10;
         var steps = await File.ReadAllLinesAsync("day9.txt");
         var knots = Enumerable.Repeat(new Knot(0, 0), numberOfKnots).ToList();
 
-        var visited = new HashSet<Knot>();
-        visited.Add(knots[^1]);
+        var visited = new HashSet<Knot> { knots[^1] };
 
         foreach (var line in steps.Select(s => s.Split(" ")))
         {
