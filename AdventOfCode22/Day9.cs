@@ -43,4 +43,49 @@ public class Day9
 
         Assert.Equal(6503, visited.Count);
     }
+
+    [Fact]
+    public async Task Part2()
+    {
+        int numberOfKnots = 10;
+        var steps = await File.ReadAllLinesAsync("day9.txt");
+        var knots = Enumerable.Repeat(new Knot(0, 0), numberOfKnots).ToList();
+
+        var visited = new HashSet<Knot>();
+        visited.Add(knots[^1]);
+
+        foreach (var line in steps.Select(s => s.Split(" ")))
+        {
+            Func<Knot, Knot> moveHead = line[0] switch
+            {
+                "R" => d => d with { x = d.x + 1 },
+                "L" => d => d with { x = d.x - 1 },
+                "U" => d => d with { y = d.y + 1 },
+                "D" => d => d with { y = d.y - 1 },
+            };
+
+            for (int i = 0; i < int.Parse(line[1]); i++)
+            {
+                knots[0] = moveHead(knots[0]);
+
+                for (int j = 1; j < knots.Count; j++)
+                {
+                    var dx = knots[j - 1].x - knots[j].x;
+                    var dy = knots[j - 1].y - knots[j].y;
+
+                    knots[j] = (dx, dy) switch
+                    {
+                        ( >= -1 and <= 1, >= -1 and <= 1) => knots[j], // do not move
+                        var t => new Knot(x: knots[j].x + Math.Sign(t.dx), y: knots[j].y + Math.Sign(t.dy))
+                    };
+                }
+
+                visited.Add(knots[^1]);
+            }
+        }
+
+        Assert.Equal(6503, visited.Count);
+    }
+
+    record struct Knot(int x, int y);
 }
