@@ -30,14 +30,7 @@ public class Day9
                 var move = headDelta switch
                 {
                     (>= -1 and <= 1, >= -1 and <= 1) => (0, 0), // do not move
-                    (2, 0) => (1, 0),
-                    (-2, 0) => (-1, 0),
-                    (0, 2) => (0, 1),
-                    (0, -2) => (0, -1),
-                    (>= 1, >= 1) => (1, 1),
-                    (<= -1, >= 1) => (-1, 1),
-                    (<= -1, <= -1) => (-1, -1),
-                    (>= 1, <= -1) => (1, -1),
+                    var (dx, dy) => (Math.Sign(dx), Math.Sign(dy)),
                 };
 
                 tailPos.x += move.Item1;
