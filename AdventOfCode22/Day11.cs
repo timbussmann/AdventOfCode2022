@@ -14,9 +14,12 @@ public class Day11
             MonkeyRound(monkeys, level => level / 3);
         }
 
-        var orderByDescending = monkeys.Select(m => m.InspectedItems).OrderByDescending(i => i);
-        var top2 = orderByDescending.Take(2).ToArray();
-        Assert.Equal(120756, top2[0] * top2[1]);
+        var result = monkeys
+            .Select(m => m.InspectedItems)
+            .OrderByDescending(i => i)
+            .Take(2)
+            .Aggregate(1L, (result, itemsInspected) => result * itemsInspected);
+        Assert.Equal(120756, result);
     }
 
     [Fact]
@@ -31,17 +34,20 @@ public class Day11
         {
             MonkeyRound(monkeys, level => level % allMods);
         }
-
-        var orderByDescending = monkeys.Select(m => m.InspectedItems).OrderByDescending(i => i);
-        var top2 = orderByDescending.Take(2).ToArray();
-        Assert.Equal(39109444654, top2[0] * top2[1]);
+        
+        var result = monkeys
+            .Select(m => m.InspectedItems)
+            .OrderByDescending(i => i)
+            .Take(2)
+            .Aggregate(1L, (result, itemsInspected) => result * itemsInspected);
+        Assert.Equal(39109444654, result);
     }
 
     static void MonkeyRound(Monkey[] monkeys, Func<long, long> afterInspection)
     {
         foreach (var monkey in monkeys)
         {
-            foreach (var item in monkey.Items)
+            while (monkey.Items.TryDequeue(out var item))
             {
                 monkey.InspectedItems++;
                 long worryLevel = monkey.Operation.GetResult(item);
@@ -49,15 +55,13 @@ public class Day11
                 var test = worryLevel % monkey.Test == 0;
                 if (test)
                 {
-                    monkeys[monkey.ThrowToIfTrue].Items.Add(worryLevel);
+                    monkeys[monkey.ThrowToIfTrue].Items.Enqueue(worryLevel);
                 }
                 else
                 {
-                    monkeys[monkey.ThrowToIfFalse].Items.Add(worryLevel);
+                    monkeys[monkey.ThrowToIfFalse].Items.Enqueue(worryLevel);
                 }
             }
-
-            monkey.Items = new List<long>();
         }
     }
 
@@ -69,7 +73,7 @@ public class Day11
             var monkey = new Monkey();
 
             enumerator.MoveNext();
-            monkey.Items = enumerator.Current.Substring("  Starting items: ".Length).Split(",").Select(s => long.Parse(s.Trim())).ToList();
+            monkey.Items = new Queue<long>(enumerator.Current.Substring("  Starting items: ".Length).Split(",").Select(s => long.Parse(s.Trim())));
             
             enumerator.MoveNext();
             monkey.Operation = enumerator.Current.Substring("  Operation: new = ".Length).Split(' ', StringSplitOptions.RemoveEmptyEntries) switch
@@ -99,7 +103,7 @@ public class Day11
 
 class Monkey
 {
-    public List<long> Items { get; set; }
+    public Queue<long> Items { get; set; }
     public Operation Operation { get; set; }
     public int Test { get; set; }
     public int ThrowToIfTrue { get; set; }
