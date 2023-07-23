@@ -9,8 +9,6 @@ public class Day11
 
         var monkeys = ParseMonkeys(input).ToArray();
 
-        var allMods = monkeys.Aggregate(1, (res, monkey) => res * monkey.Test);
-        
         for (int i = 0; i < 20; i++)
         {
             MonkeyRound(monkeys, level => level / 3);
@@ -20,7 +18,7 @@ public class Day11
         var top2 = orderByDescending.Take(2).ToArray();
         Assert.Equal(120756, top2[0] * top2[1]);
     }
-    
+
     [Fact]
     public async Task Part2()
     {
@@ -38,13 +36,11 @@ public class Day11
         var top2 = orderByDescending.Take(2).ToArray();
         Assert.Equal(39109444654, top2[0] * top2[1]);
     }
-    
 
     static void MonkeyRound(Monkey[] monkeys, Func<long, long> afterInspection)
     {
-        for (int i = 0; i < monkeys.Length; i++)
+        foreach (var monkey in monkeys)
         {
-            var monkey = monkeys[i];
             foreach (var item in monkey.Items)
             {
                 monkey.InspectedItems++;
@@ -67,30 +63,34 @@ public class Day11
 
     IEnumerable<Monkey> ParseMonkeys(IEnumerable<string> input)
     {
-        var enumerator = input.GetEnumerator();
+        using var enumerator = input.GetEnumerator();
         while (enumerator.MoveNext())
         {
             var monkey = new Monkey();
+
             enumerator.MoveNext();
-            var itemsText = enumerator.Current;
-            monkey.Items = itemsText.Substring("  Starting items: ".Length).Split(",").Select(s => long.Parse(s.Trim())).ToList();
+            monkey.Items = enumerator.Current.Substring("  Starting items: ".Length).Split(",").Select(s => long.Parse(s.Trim())).ToList();
+            
             enumerator.MoveNext();
-            var operationText = enumerator.Current.Substring("  Operation: new = ".Length);
-            monkey.Operation = operationText.Split(' ', StringSplitOptions.RemoveEmptyEntries) switch
+            monkey.Operation = enumerator.Current.Substring("  Operation: new = ".Length).Split(' ', StringSplitOptions.RemoveEmptyEntries) switch
             {
                 [var a, "*", var b] => new Multiply(a, b),
                 [var a, "+", var b] => new Sum(a, b),
                 _ => throw new Exception("unexpected operation")
             };
+            
             enumerator.MoveNext();
             var testText = enumerator.Current.Substring("  Test: divisible by ".Length);
             monkey.Test = int.Parse(testText);
+            
             enumerator.MoveNext();
             var trueText = enumerator.Current.Substring("    if true: throw to monkey ".Length);
             monkey.ThrowToIfTrue = int.Parse(trueText);
+            
             enumerator.MoveNext();
             var falseText = enumerator.Current.Substring("    if false: throw to monkey ".Length);
             monkey.ThrowToIfFalse = int.Parse(falseText);
+            
             enumerator.MoveNext();
             yield return monkey;
         }
@@ -109,8 +109,8 @@ class Monkey
 
 abstract class Operation
 {
-    public string A { get; set; }
-    public string B { get; set; }
+    protected string A { get; set; }
+    protected string B { get; set; }
 
     protected Operation(string a, string b)
     {
