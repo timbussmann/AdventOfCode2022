@@ -9,9 +9,11 @@ public class Day11
 
         var monkeys = ParseMonkeys(input).ToArray();
 
+        var allMods = monkeys.Aggregate(1, (res, monkey) => res * monkey.Test);
+        
         for (int i = 0; i < 20; i++)
         {
-            MonkeyRound(monkeys);
+            MonkeyRound(monkeys, level => level / 3);
         }
 
         var orderByDescending = monkeys.Select(m => m.InspectedItems).OrderByDescending(i => i);
@@ -19,8 +21,26 @@ public class Day11
         Assert.Equal(120756, top2[0] * top2[1]);
     }
     
+    [Fact]
+    public async Task Part2()
+    {
+        var input = await File.ReadAllLinesAsync("day11.txt");
 
-    static void MonkeyRound(Monkey[] monkeys)
+        var monkeys = ParseMonkeys(input).ToArray();
+
+        var allMods = monkeys.Aggregate(1, (res, monkey) => res * monkey.Test);
+        for (int i = 0; i < 10_000; i++)
+        {
+            MonkeyRound(monkeys, level => level % allMods);
+        }
+
+        var orderByDescending = monkeys.Select(m => m.InspectedItems).OrderByDescending(i => i);
+        var top2 = orderByDescending.Take(2).ToArray();
+        Assert.Equal(39109444654, top2[0] * top2[1]);
+    }
+    
+
+    static void MonkeyRound(Monkey[] monkeys, Func<long, long> afterInspection)
     {
         for (int i = 0; i < monkeys.Length; i++)
         {
@@ -29,7 +49,7 @@ public class Day11
             {
                 monkey.InspectedItems++;
                 long worryLevel = monkey.Operation.GetResult(item);
-                worryLevel /= 3;
+                worryLevel = afterInspection(worryLevel);
                 var test = worryLevel % monkey.Test == 0;
                 if (test)
                 {
@@ -84,7 +104,7 @@ class Monkey
     public int Test { get; set; }
     public int ThrowToIfTrue { get; set; }
     public int ThrowToIfFalse { get; set; }
-    public int InspectedItems { get; set; }
+    public long InspectedItems { get; set; }
 }
 
 abstract class Operation
