@@ -21,6 +21,7 @@ public class Day9
                 "L" => d => d with { xd = d.xd - 1 },
                 "U" => d => d with { yd = d.yd + 1 },
                 "D" => d => d with { yd = d.yd - 1 },
+                _ => throw new ArgumentOutOfRangeException()
             };
 
             for (int i = 0; i < int.Parse(line[1]); i++)
@@ -62,6 +63,7 @@ public class Day9
                 "L" => d => d with { x = d.x - 1 },
                 "U" => d => d with { y = d.y + 1 },
                 "D" => d => d with { y = d.y - 1 },
+                _ => throw new ArgumentOutOfRangeException()
             };
 
             for (int i = 0; i < int.Parse(line[1]); i++)

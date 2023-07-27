@@ -103,8 +103,8 @@ public class Day11
 
 class Monkey
 {
-    public Queue<long> Items { get; set; }
-    public Operation Operation { get; set; }
+    public Queue<long> Items { get; set; } = null!;
+    public Operation Operation { get; set; } = null!;
     public int Test { get; set; }
     public int ThrowToIfTrue { get; set; }
     public int ThrowToIfFalse { get; set; }
