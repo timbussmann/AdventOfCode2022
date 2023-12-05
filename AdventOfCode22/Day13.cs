@@ -5,13 +5,6 @@ namespace AdventOfCode22;
 
 public class Day13
 {
-    private readonly ITestOutputHelper _testOutputHelper;
-
-    public Day13(ITestOutputHelper testOutputHelper)
-    {
-        _testOutputHelper = testOutputHelper;
-    }
-
     [Fact]
     public async Task Part1()
     {
@@ -21,6 +14,19 @@ public class Day13
         var result = orderedPacketIndexes.Sum();
         
         Assert.Equal(6395, result);
+    }
+
+    [Fact]
+    public async Task Part2()
+    {
+        var divider1 = new PacketList() { new PacketList() { new Digit(2) } };
+        var divider2 = new PacketList() { new PacketList() { new Digit(6) } };
+        var input = await File.ReadAllLinesAsync("day13.txt");
+        var orderedPackets = input.Where(s => s.Length > 0).Select(s => Parse(s) as PacketList).Union(new []{ divider2, divider1 }).Order(new PacketListComparer()!).ToList();
+        var index1 = orderedPackets.IndexOf(divider1) + 1;
+        var index2 = orderedPackets.IndexOf(divider2) + 1;
+        
+        Assert.Equal(24921, index1 * index2);
     }
 
     [Theory]
@@ -66,7 +72,7 @@ public class Day13
     [InlineData("[[2],[[[8]],6],[2,[[7],10,0,[8,7]],9,[9]],[]]", "[[2,[[4,9],4,[],9]],[[1,[8,7,3],0,2],2],[[],5,2],[0,10]]", -1)]
     public void Part1Samples(string left, string right, int expectedResult)
     {
-        Assert.Equal(expectedResult, Compare(Parse(left), Parse(right)));
+        Assert.Equal(expectedResult, ComparePacketItem(Parse(left), Parse(right)));
     }
 
     private IEnumerable<int> FindOrderedPackets(string[] input)
@@ -79,7 +85,7 @@ public class Day13
         
         for (int index = 0; index < packetGroups.Count; index++)
         {
-            if (Compare(packetGroups[index].left, packetGroups[index].right) < 0)
+            if (ComparePacketItem(packetGroups[index].left, packetGroups[index].right) < 0)
             {
                 // index numbers in the example start at 1
                 yield return index + 1;
@@ -87,7 +93,7 @@ public class Day13
         }
     }
     
-    static int Compare(IPacketItem left, IPacketItem right)
+    static int ComparePacketItem(IPacketItem left, IPacketItem right)
     {
         if (left is Digit dl)
         {
@@ -98,13 +104,13 @@ public class Day13
 
             if (right is PacketList rl)
             {
-                return Compare(new PacketList() { dl }, rl);
+                return ComparePacketItem(new PacketList() { dl }, rl);
             }
         } else if (left is PacketList ll)
         {
             if (right is Digit dr)
             {
-                return Compare(ll, new PacketList() { dr });
+                return ComparePacketItem(ll, new PacketList() { dr });
             }
 
             if (right is PacketList rl)
@@ -117,7 +123,7 @@ public class Day13
                         return 1;
                     }
 
-                    var comparison = Compare(ll[i], rl[i]);
+                    var comparison = ComparePacketItem(ll[i], rl[i]);
                     if (comparison == 0)
                     {
                         continue;
@@ -184,8 +190,35 @@ public class Day13
     {
     }
 
-    class PacketList : List<IPacketItem>, IPacketItem
+    class PacketList : List<IPacketItem>, IPacketItem, IEquatable<IPacketItem>
     {
         public PacketList Parent { get; set; }
+
+
+        public bool Equals(IPacketItem? other)
+        {
+            if (other is PacketList list && this.Count == list.Count)
+            {
+                return this.Zip(list).All(tuple => tuple.First.Equals(tuple.Second));
+            }
+
+            return false;
+        }
+
+        public override bool Equals(object? obj)
+        {
+            if (ReferenceEquals(null, obj)) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj.GetType() != this.GetType()) return false;
+            return Equals((PacketList)obj);
+        }
+    }
+
+    class PacketListComparer : IComparer<PacketList>
+    {
+        public int Compare(PacketList? x, PacketList? y)
+        {
+            return ComparePacketItem(x!, y!);
+        }
     }
 }
