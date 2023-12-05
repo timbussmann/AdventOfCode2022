@@ -7,10 +7,42 @@ public class Day13
     {
         var input = await File.ReadAllLinesAsync("day13.txt");
 
-        var orderedPacketIndexes = FindOrderedPackets(input);
+        var orderedPacketIndexes = FindOrderedPackets(input).ToArray();
         var result = orderedPacketIndexes.Sum();
         
         Assert.Equal(13, result);
+    }
+
+    [Theory]
+    // Samples from the intro text
+    [InlineData("[1,1,3,1,1]", "[1,1,5,1,1]", -1)]
+    [InlineData("[[1],[2,3,4]]", "[[1],4]", -1)]
+    [InlineData("[9]", "[[8,7,6]]", 1)]
+    [InlineData("[[4,4],4,4]", "[[4,4],4,4,4]", -1)]
+    [InlineData("[7,7,7,7]", "[7,7,7]", 1)]
+    [InlineData("[]", "[3]", -1)]
+    [InlineData("[[[]]]", "[[]]", 1)]
+    [InlineData("[1,[2,[3,[4,[5,6,7]]]],8,9]", "[1,[2,[3,[4,[5,6,0]]]],8,9]", 1)]
+    // Some other input
+    [InlineData("[[2],[7]]", "[[2, 6]]", -1)]
+    [InlineData("[[],[2,7]]", "[[2],[6]]", -1)]
+    [InlineData("[2,7]", "[2,[6]]", 1)]
+    [InlineData("[[2,7], 1]", "[[2,7], 5]", -1)]
+    [InlineData("[[2,7], 9]", "[[2,7], 5]", 1)]
+    // Data from the actual input data
+    [InlineData("[[[[8,6]],[8,[7],[6,7,6,2,4]],10,[[1,7,9],7,[7,9]]],[[4,[],[10,5],[5,4,7],5],8,9,[[5,3,3,6,9],[9,5,10],8],[[0,6,9],[8],4,6,8]]]", "[[[],3,[[10,6,9,6],[6,8,7],[1,2]],8]]", 1)]
+    [InlineData("[[4,[4],[[10,7,2],[1,6,5,7,4],[7,3,3,1,5],[]],1],[[],[[7,6,3]],5,5]]", "[[[10]]]", 1)]
+    [InlineData("[[7,7,5]]", "[[[[4,7,3],[6,0],1,6],[6,1,4,5]],[]]", 1)]
+    [InlineData("[]", "[[[[0,4,6,7],3],2],[5,[10,[8],[4,9,4],[],5],6,[[0,6],[4,7,7],[],10,[]]]]", -1)]
+    [InlineData("[[],[9,[[],3,4],[],3,[1,[8,5,1,9,7],[1,9,3,2],[2],4]],[[1,4,1,[0]],[[6,6,3,6],[2,2,6,9,5],0]],[[3],[]]]", "[[],[[[2,8,10,3]],10,[[5,3],4,8,[8]]],[1,1,[[]]],[],[]]", 1)]
+    [InlineData("[[7,[]]]", "[[[],9,[[0,9,1],[6],9,[8,4,10,4,7],[6]]],[3,[2,[0,5],7,9],2],[[[9],7,[1,7],9]]]", 1)]
+    [InlineData("[[3,8,[[3,4,1,2,3]],[0,[1],[7,3,8,10,9]],[[2,10,7]]],[[[0,3,8,9],[0,6,8],8,1,2],7,[9,0,7,[9,5,0]],[[]],[[5,3,6]]]]", "[[10,[]],[2,[4],[]],[[[0],[0,6,5],[7,4,3,2,3]]],[]]", 1)]
+    [InlineData("[[[]],[],[[[8,3,5,4,4],[9,5,4],[2],[9,4,3],[3,7,3,9]]],[4,[3,[]],0,[[10,9,0],2,8,[1],[]]]]", "[[],[7,[]]]", 1)]
+    [InlineData("[[4,0,[[8,0,10,7],10,1,[10,1,8,10],[]],4,10],[7,1],[8],[7,[[4,0,7,1]],[7],[]],[]]", "[[8,[[10,8,4,7,10]],[[10,2]],[5],[[1,5,2,6]]],[[[4,4,3,4,4],6],9,[6],[0,[9,6,5,1],[9],[8,5,0],[0]]],[8,5,[8,[2,6,0,3,4],7,4],8,[6,[4,0,10],[]]],[[[8],[0,2,8,0]],[6,[1]],[],1],[]]", -1)]
+    [InlineData("[[2],[[[8]],6],[2,[[7],10,0,[8,7]],9,[9]],[]]", "[[2,[[4,9],4,[],9]],[[1,[8,7,3],0,2],2],[[],5,2],[0,10]]", -1)]
+    public void Part1Samples(string left, string right, int expectedResult)
+    {
+        Assert.Equal(expectedResult, Compare(Parse(left), Parse(right)));
     }
 
     private IEnumerable<int> FindOrderedPackets(string[] input)
@@ -20,13 +52,13 @@ public class Day13
         {
             packetGroups.Add(new (Parse(input[i]), Parse(input[i+1])));
         }
-
-        int total = 0;
-        for (int i = 0; i < packetGroups.Count; i++)
+        
+        for (int index = 0; index < packetGroups.Count; index++)
         {
-            if (Compare(packetGroups[i].left, packetGroups[i].right) < 0)
+            if (Compare(packetGroups[index].left, packetGroups[index].right) < 0)
             {
-                yield return i + 1;
+                // index numbers in the example start at 1
+                yield return index + 1;
             }
         }
     }
@@ -70,6 +102,11 @@ public class Day13
                     return comparison;
                 }
 
+                if (ll.Count == rl.Count)
+                {
+                    // both lists are equal in length and values
+                    return 0;
+                }
                 // left list ran out of items before right list
                 return -1;
             }
@@ -77,7 +114,7 @@ public class Day13
 
         throw new Exception("invalid");
     }
-
+    
     static IPacketItem Parse(string line)
     {
         PacketList currentItems = new();
