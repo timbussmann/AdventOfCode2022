@@ -86,25 +86,15 @@ public class Day13
 
     static int ComparePacketItem(IPacketItem left, IPacketItem right)
     {
-        if (left is Digit dl)
+        switch (left)
         {
-            if (right is Digit dr)
-            {
+            case Digit dl when right is Digit dr:
                 return dl.digit.CompareTo(dr.digit);
-            }
-
-            if (right is PacketList rl)
-            {
+            case Digit dl when right is PacketList rl:
                 return ComparePacketItem(new PacketList() { dl }, rl);
-            }
-        } else if (left is PacketList ll)
-        {
-            if (right is Digit dr)
-            {
+            case PacketList ll when right is Digit dr:
                 return ComparePacketItem(ll, new PacketList() { dr });
-            }
-
-            if (right is PacketList rl)
+            case PacketList ll when right is PacketList rl:
             {
                 for (int i = 0; i < ll.Count; i++)
                 {
@@ -131,9 +121,9 @@ public class Day13
                 // left list ran out of items before right list
                 return -1;
             }
+            default:
+                throw new Exception("invalid");
         }
-
-        throw new Exception("invalid");
     }
     
     static IPacketItem Parse(string line)
