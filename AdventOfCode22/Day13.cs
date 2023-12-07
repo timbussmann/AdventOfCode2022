@@ -10,8 +10,10 @@ public class Day13
     {
         var input = await File.ReadAllLinesAsync("day13.txt");
 
-        var orderedPacketIndexes = FindOrderedPackets(input).ToArray();
-        var result = orderedPacketIndexes.Sum();
+        var result = input.Chunk(3)
+            .Select(group => (left: Parse(group[0]), right: Parse(group[1])))
+            .Select((tuple, index) => ComparePacketItem(tuple.left, tuple.right) < 0 ? index + 1 : 0)
+            .Sum();
         
         Assert.Equal(6395, result);
     }
@@ -19,10 +21,18 @@ public class Day13
     [Fact]
     public async Task Part2()
     {
+        var input = await File.ReadAllLinesAsync("day13.txt");
+        
         var divider1 = new PacketList() { new PacketList() { new Digit(2) } };
         var divider2 = new PacketList() { new PacketList() { new Digit(6) } };
-        var input = await File.ReadAllLinesAsync("day13.txt");
-        var orderedPackets = input.Where(s => s.Length > 0).Select(s => Parse(s) as PacketList).Union(new []{ divider2, divider1 }).Order(new PacketListComparer()!).ToList();
+        
+        var orderedPackets = input
+            .Where(s => s.Length > 0)
+            .Select(s => Parse(s) as PacketList)
+            .Union(new []{ divider2, divider1 })
+            .Order(new PacketListComparer()!)
+            .ToList();
+        
         var index1 = orderedPackets.IndexOf(divider1) + 1;
         var index2 = orderedPackets.IndexOf(divider2) + 1;
         
@@ -62,7 +72,6 @@ public class Day13
     [InlineData("[[1]]", "[[[3],[[9,4,10,10],[8,9,1],[],[0,3,10,5]],[8,[]]],[[[10,6,0],2,1],5,0,[7],[[9]]],[[[],[9,9,3,2,3],5]]]", -1)]
     [InlineData("[[],[7,2],[5,[9,[]],1,[4,6,5],[[9,10,8,3],6]]]", "[[[[]],0,[1,8],[5,2,7,2],6],[],[[],[[2,1,3,9],6,9,5,3],2],[[[10],[0],[4,0,3,6,8]],4],[9]]", -1)]
     [InlineData("[[],[],[],[]]", "[[],[[3,6],6,[6],[[3,10,4],6],[]]]", -1)]
-    
     [InlineData("[]", "[[[[0,4,6,7],3],2],[5,[10,[8],[4,9,4],[],5],6,[[0,6],[4,7,7],[],10,[]]]]", -1)]
     [InlineData("[[],[9,[[],3,4],[],3,[1,[8,5,1,9,7],[1,9,3,2],[2],4]],[[1,4,1,[0]],[[6,6,3,6],[2,2,6,9,5],0]],[[3],[]]]", "[[],[[[2,8,10,3]],10,[[5,3],4,8,[8]]],[1,1,[[]]],[],[]]", 1)]
     [InlineData("[[7,[]]]", "[[[],9,[[0,9,1],[6],9,[8,4,10,4,7],[6]]],[3,[2,[0,5],7,9],2],[[[9],7,[1,7],9]]]", 1)]
@@ -75,24 +84,6 @@ public class Day13
         Assert.Equal(expectedResult, ComparePacketItem(Parse(left), Parse(right)));
     }
 
-    private IEnumerable<int> FindOrderedPackets(string[] input)
-    {
-        List<(IPacketItem left, IPacketItem right)> packetGroups = new ();
-        for (int i = 0; i < input.Length; i+=3)
-        {
-            packetGroups.Add(new (Parse(input[i]), Parse(input[i+1])));
-        }
-        
-        for (int index = 0; index < packetGroups.Count; index++)
-        {
-            if (ComparePacketItem(packetGroups[index].left, packetGroups[index].right) < 0)
-            {
-                // index numbers in the example start at 1
-                yield return index + 1;
-            }
-        }
-    }
-    
     static int ComparePacketItem(IPacketItem left, IPacketItem right)
     {
         if (left is Digit dl)
