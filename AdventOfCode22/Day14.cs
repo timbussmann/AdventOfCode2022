@@ -83,6 +83,6 @@ public class Day14
             }
         } while (start.y <= globalYMax);
         
-        Assert.Equal(24, counter);
+        Assert.Equal(1003, counter);
     }
 }
