@@ -23,42 +23,22 @@ public class Day14
         AddLines(lines, map);
 
         int counter = 0;
-        Point currentPosition = (500, 0);
+        Point current = (500, 0);
         do
         {
-            if (map[currentPosition.y + 1, currentPosition.x] <= 0)
+            var next = FindNextPosition(map, current, ref counter);
+            if (current == next)
             {
-                currentPosition.y++;
+                map[current.y, current.x] = 1;
+                current = (500, 0); // new sand block
+                counter++;
             }
             else
             {
-                // found block or other sand
-                // try left
-                if (map[currentPosition.y + 1, currentPosition.x - 1] <= 0)
-                {
-                    currentPosition.y++;
-                    currentPosition.x--;
-                }
-                else
-                {
-                    // left blocked
-                    // try right
-                    if (map[currentPosition.y + 1, currentPosition.x + 1] <= 0)
-                    {
-                        currentPosition.y++;
-                        currentPosition.x++;
-                    }
-                    else
-                    {
-                        // right blocked too
-                        // rest at current pos
-                        map[currentPosition.y, currentPosition.x] = 1;
-                        currentPosition = (500, 0); // new sand block
-                        counter++;
-                    }
-                }
+                current = next;
             }
-        } while (currentPosition.y <= maxY);
+
+        } while (current.y <= maxY);
         
         Assert.Equal(1003, counter);
     }
