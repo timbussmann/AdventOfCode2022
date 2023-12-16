@@ -82,7 +82,7 @@ public class Day14
         Assert.Equal(1003, counter);
     }
 
-    private static IEnumerable<IEnumerable<((int, int) First, (int, int) Second)>> ParseLines(string[] input)
+    private static IEnumerable<IEnumerable<(Point First, Point Second)>> ParseLines(string[] input)
     {
         var lines = input.Select(line =>
         {
@@ -106,7 +106,7 @@ public class Day14
             .SelectMany(l => l
                 .SelectMany(p => new[] { p.First, p.Second }))
             .ToArray();
-        var maxY = allPoints.Max(p => p.Item2);
+        var maxY = allPoints.Max(p => p.y);
         
         // +1 because of zero index and +2 due to part 2 addition
         var map = new int[maxY + 3, 1000];
@@ -174,6 +174,6 @@ public class Day14
             }
         } while (map[0, 500] <= 0);
         
-        Assert.Equal(1003, counter);
+        Assert.Equal(25771, counter);
     }
 }
