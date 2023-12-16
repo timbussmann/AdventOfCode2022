@@ -1,7 +1,3 @@
-using System.Diagnostics;
-using System.Text;
-using Xunit.Abstractions;
-
 namespace AdventOfCode22;
 
 using Point = (int x, int y);
@@ -17,10 +13,7 @@ public class Day14
         var lines = ParseLines(input);
         
         var maxY = FindMaximumY(lines);
-
-        // +1 because of zero index and +1 for the fall-through check
-        var map = new int[maxY + 2, 1000];
-        AddLines(lines, map);
+        var map = BuildMap(maxY, lines);
 
         int counter = 0;
         Point current = (500, 0);
@@ -43,20 +36,6 @@ public class Day14
         Assert.Equal(1003, counter);
     }
 
-    private static IEnumerable<IEnumerable<(Point First, Point Second)>> ParseLines(string[] input)
-    {
-        var lines = input.Select(line =>
-        {
-            var points = line.Split("->").Select(pointString =>
-            {
-                var pointElements = pointString.Split(',');
-                return (int.Parse(pointElements[0].Trim()), int.Parse(pointElements[1].Trim()));
-            }).ToArray();
-            return points.Zip(points.Skip(1));
-        });
-        return lines;
-    }
-
     [Fact]
     public async Task Part2()
     {
@@ -64,17 +43,8 @@ public class Day14
         var lines = ParseLines(input);
 
         var maxY = FindMaximumY(lines);
+        var map = BuildMap(maxY, lines);
 
-        // +1 because of zero index and +2 due to part 2 addition
-        var map = new int[maxY + 3, 1000];
-        AddLines(lines, map);
-
-        // add bottom line for part 2
-        for (int i = 0; i < map.GetLength(1); i++)
-        {
-            map[map.GetLength(0) - 1, i] = BlockValue;
-        }
-        
         int counter = 0;
         Point current = (500, 0);
         do
@@ -94,6 +64,54 @@ public class Day14
         } while (map[0, 500] <= 0);
         
         Assert.Equal(25771, counter);
+    }
+
+    private static int[,] BuildMap(int maxY, IEnumerable<IEnumerable<(Point First, Point Second)>> lines)
+    {
+        // +1 because of zero index and +2 due to part 2 addition
+        var map = new int[maxY + 3, 1000];
+        foreach (var line in lines)
+        {
+            foreach (var edge in line)
+            {
+                var xMin = Math.Min(edge.First.Item1, edge.Second.Item1);
+                var xMax = Math.Max(edge.First.Item1, edge.Second.Item1);
+                var yMin = Math.Min(edge.First.Item2, edge.Second.Item2);
+                var yMax = Math.Max(edge.First.Item2, edge.Second.Item2);
+
+                for (int i1 = xMin; i1 <= xMax; i1++)
+                {
+                    map[yMin, i1] = BlockValue;
+                }
+
+                for (int i2 = yMin; i2 < yMax; i2++)
+                {
+                    map[i2, xMin] = BlockValue;
+                }
+            }
+        }
+
+        // add bottom line for part 2
+        for (int i = 0; i < map.GetLength(1); i++)
+        {
+            map[map.GetLength(0) - 1, i] = BlockValue;
+        }
+
+        return map;
+    }
+
+    private static IEnumerable<IEnumerable<(Point First, Point Second)>> ParseLines(string[] input)
+    {
+        var lines = input.Select(line =>
+        {
+            var points = line.Split("->").Select(pointString =>
+            {
+                var pointElements = pointString.Split(',');
+                return (int.Parse(pointElements[0].Trim()), int.Parse(pointElements[1].Trim()));
+            }).ToArray();
+            return points.Zip(points.Skip(1));
+        });
+        return lines;
     }
 
     private static Point FindNextPosition(int[,] map, Point position, ref int counter)
@@ -129,30 +147,6 @@ public class Day14
         }
 
         return position;
-    }
-
-    private static void AddLines(IEnumerable<IEnumerable<(Point First, Point Second)>> lines, int[,] map)
-    {
-        foreach (var line in lines)
-        {
-            foreach (var edge in line)
-            {
-                var xMin = Math.Min(edge.First.Item1, edge.Second.Item1);
-                var xMax = Math.Max(edge.First.Item1, edge.Second.Item1);
-                var yMin = Math.Min(edge.First.Item2, edge.Second.Item2);
-                var yMax = Math.Max(edge.First.Item2, edge.Second.Item2);
-
-                for (int i = xMin; i <= xMax; i++)
-                {
-                    map[yMin, i] = BlockValue;
-                }
-
-                for (int i = yMin; i < yMax; i++)
-                {
-                    map[i, xMin] = BlockValue;
-                }
-            }
-        }
     }
 
     private static int FindMaximumY(IEnumerable<IEnumerable<(Point First, Point Second)>> lines)
