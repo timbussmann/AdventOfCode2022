@@ -30,7 +30,7 @@ public class Day15
             reading.AddToCoordinateSystem(row, coordinateSystem);
         }
         
-        var total = coordinateSystem.GetRow(row).Where(x => x == 1).Sum();
+        var total = coordinateSystem.GetRowValues(row).Where(x => x == 1).Sum();
         
         Assert.Equal(expectedResult, total);
     }
@@ -61,7 +61,7 @@ public class Day15
                 reading.AddToCoordinateSystem(y, coordinateSystem);
             }
             
-            var index = coordinateSystem.GetRow(y).ToList().FindIndex(v => v == 0);
+            var index = coordinateSystem.GetRowValues(y).ToList().FindIndex(v => v == 0);
             if (index >= 0)
             {
                 counter++;
@@ -200,17 +200,9 @@ public class CoordinateSystem
         }
     }
 
-    public int[] GetRow(int y)
+    public int[] GetRowValues(int y)
     {
-        int numCols = array[0].Length;
-        int[] rowValues = new int[numCols];
-
-        for (int col = 0; col < numCols; col++)
-        {
-            rowValues[col] = array[Math.Abs(yMin - y)][col];
-        }
-
-        return rowValues;
+        return array[Math.Abs(yMin - y)];
     }
 
     public void Render(ITestOutputHelper outputHelper)
