@@ -37,7 +37,7 @@ public class Day15
 
     [Theory]
     [InlineData("day15.test.txt", 20, 56000011)]
-    //[InlineData("day15.txt", 4000000, 56000011)] //requires too much memory
+    [InlineData("day15.txt", 4000000, 56000011)] //requires too much memory
     public async Task Part2(string fileName, int max, int expectedResult)
     {
         var input = await File.ReadAllLinesAsync(fileName);
@@ -51,19 +51,16 @@ public class Day15
             return new Reading(sensor, beacon);
         }).ToArray();
         
-        var coordinateSystem = new CoordinateSystem(0, max + 1, 0, max + 1, false);
-        foreach (var reading in readings)
-        {
-            for (int i = 0; i <= max; i++)
-            {
-                reading.AddToCoordinateSystem(i, coordinateSystem);
-            }
-        }
-
         int counter = 0;
         Coordinate signal = default;
         for (int y = 0; y <= max; y++)
         {
+            var coordinateSystem = new CoordinateSystem(0, max, y, y, false);
+            foreach (var reading in readings)
+            {
+                reading.AddToCoordinateSystem(y, coordinateSystem);
+            }
+            
             var index = coordinateSystem.GetRow(y).ToList().FindIndex(v => v == 0);
             if (index >= 0)
             {
