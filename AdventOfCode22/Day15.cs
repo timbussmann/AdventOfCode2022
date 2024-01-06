@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices.JavaScript;
 using System.Text;
 using System.Text.RegularExpressions;
 using Xunit.Abstractions;
@@ -9,17 +8,12 @@ namespace AdventOfCode22;
 
 public class Day15
 {
-    readonly ITestOutputHelper testOutputHelper;
-
-    public Day15(ITestOutputHelper testOutputHelper)
+    [Theory]
+    [InlineData("day15.txt", 2000000, 4793062)]
+    [InlineData("day15.test.txt", 10, 26)]
+    public async Task Part1(string fileName, int row, int expectedResult)
     {
-        this.testOutputHelper = testOutputHelper;
-    }
-
-    [Fact]
-    public async Task Part1()
-    {
-        var input = await File.ReadAllLinesAsync("day15.txt");
+        var input = await File.ReadAllLinesAsync(fileName);
         var regex = new Regex("x=(-?\\d+), y=(-?\\d+)");
         
         var readings = input.Select(line =>
@@ -27,41 +21,77 @@ public class Day15
             var matches = regex.Matches(line);
             var sensor = new Coordinate(int.Parse(matches[0].Groups[1].ValueSpan), int.Parse(matches[0].Groups[2].ValueSpan));
             var beacon = new Coordinate(int.Parse(matches[1].Groups[1].ValueSpan), int.Parse(matches[1].Groups[2].ValueSpan));
-            var distance = Math.Abs(sensor.X - beacon.X) + Math.Abs(sensor.Y - beacon.Y);
-            return (Sensor: sensor, Beacon: beacon, Distance: distance);
+            return new Reading(sensor, beacon);
         }).ToArray();
 
-        var allPoints = readings.Select(reading => reading.Beacon).Union(readings.Select(reading => reading.Sensor)).ToArray();
-        var maxDistance = readings.Max(reading => reading.Distance);
-        var coords = new CoordinateSystem(allPoints.Min(c => c.X) - maxDistance, allPoints.Max(c => c.X) + maxDistance, allPoints.Min(c => c.Y) - maxDistance, allPoints.Max(c => c.Y) + maxDistance);
+        var rowArray = new CoordinateSystem(readings.Min(r => r.MinX), readings.Max(r => r.MaxX) + 1, row, row);
         foreach (var reading in readings)
         {
-            coords[reading.Sensor.X, reading.Sensor.Y] = 9;
-            coords[reading.Beacon.X, reading.Beacon.Y] = 8;
-            
-            var baseX = reading.Sensor.X;
-            var baseY = reading.Sensor.Y;
-            
-            for (int y = 0; y <= reading.Distance; y++)
-            {
-                for (int x = 0; x <= (reading.Distance - y); x++)
-                {
-                    coords.TrySet(baseX + x, baseY + y, 1);
-                    coords.TrySet(baseX - x, baseY + y, 1);
-                    coords.TrySet(baseX + x, baseY - y, 1);
-                    coords.TrySet(baseX - x, baseY - y, 1);
-                }
-            }
+            reading.AddToCoordinateSystem(row, rowArray);
+        }
+        
+        var total = rowArray.GetRow(row).Where(x => x == 1).Sum();
+        
+        Assert.Equal(expectedResult, total);
+    }
+    
+    public class Reading
+    {
+        public Reading(Coordinate sensor, Coordinate beacon)
+        {
+            Sensor = sensor;
+            Beacon = beacon;
+            BeaconDistance = Math.Abs(sensor.X - beacon.X) + Math.Abs(sensor.Y - beacon.Y);
+            MinX = Sensor.X - BeaconDistance;
+            MaxX = Sensor.X + BeaconDistance;
+            MinY = Sensor.Y - BeaconDistance;
+            MaxY = Sensor.Y + BeaconDistance;
         }
 
-        var row = coords.GetRow(10);
-        var total = row.Where(x => x == 1).Sum();
+        public Coordinate Sensor { get; }
+        public Coordinate Beacon { get; }
+        public int BeaconDistance { get; }
+
+        public int MinX { get; }
+        public int MaxX { get; }
+        public int MinY { get; }
+        public int MaxY { get; }
+
+        public void AddToCoordinateSystem(int row, CoordinateSystem rowArray)
+        {
+            if (row < MinY || row > MaxY)
+            {
+                // this reading is not close to the desired row
+                return;
+            }
+
+            var yDistance = Math.Abs(Sensor.Y - row);
+            var xWidth = BeaconDistance - yDistance;
+            for (int x = Sensor.X - xWidth; x <= Sensor.X + xWidth; x++)
+            {
+                rowArray.TrySet(x, row, 1);
+            }
         
-        Assert.Equal(26, total);
-        coords.Render(testOutputHelper);
+            // mark sensors/beacons separately as they don't count towards the expected result
+            if (Sensor.Y == row)
+            {
+                rowArray[Sensor.X, row] = 9;
+            }
+
+            if (Beacon.Y == row)
+            {
+                rowArray[Beacon.X, row] = 8;
+            }
+        }
     }
 }
 
+
+/// <summary>
+/// Little helper class to work in a coordinate system more comfortably.
+/// Allows using X,Y coordinates without inverting them as typically required in two-dimensional arrays.
+/// Handles offsetting desired coordinates with the actual internal array structure.
+/// </summary>
 public class CoordinateSystem
 {
     int[][] array;
@@ -75,9 +105,7 @@ public class CoordinateSystem
             throw new NotSupportedException();
         }
         
-        //var xWidth = xMin < 0 ? xMax + Math.Abs(xMin) + 1 : xMax - xMin + 1;
         var xWidth = Math.Abs(xMax - xMin) + 1;
-        //var yWidth = yMin < 0 ? yMax + Math.Abs(yMin) + 1 : yMax - yMin + 1;
         var yWidth = Math.Abs(yMax - yMin) + 1;
         this.xMin = xMin;
         this.yMin = yMin;
@@ -124,7 +152,7 @@ public class CoordinateSystem
 
     public int[] GetRow(int y)
     {
-        int numCols = array.Length;
+        int numCols = array[0].Length;
         int[] rowValues = new int[numCols];
 
         for (int col = 0; col < numCols; col++)
