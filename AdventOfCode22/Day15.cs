@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices.JavaScript;
 using System.Text;
 using System.Text.RegularExpressions;
 using Xunit.Abstractions;
@@ -63,7 +64,7 @@ public class Day15
 
 public class CoordinateSystem
 {
-    int[,] array;
+    int[][] array;
     readonly int xMin;
     readonly int yMin;
 
@@ -81,7 +82,11 @@ public class CoordinateSystem
         this.xMin = xMin;
         this.yMin = yMin;
         
-        array = new int[yWidth, xWidth];
+        array = new int[yWidth][];
+        for(int i = 0; i < yWidth; i++)
+        {
+            array[i] = new int[xWidth];
+        }
     }
     
     public int this[int x, int y]
@@ -89,13 +94,13 @@ public class CoordinateSystem
         get
         {
             //TODO constraint checks
-            return array[Math.Abs(yMin - y), Math.Abs(xMin - x)];
+            return array[Math.Abs(yMin - y)][Math.Abs(xMin - x)];
         }
 
         set
         {
             //TODO constraint checks
-            array[Math.Abs(yMin - y), Math.Abs(xMin - x)] = value;
+            array[Math.Abs(yMin - y)][Math.Abs(xMin - x)] = value;
         }
     }
 
@@ -105,9 +110,9 @@ public class CoordinateSystem
         {
             var y_ = Math.Abs(yMin - y);
             var x_ = Math.Abs(xMin - x);
-            if (array[y_, x_] == 0)
+            if (array[y_][x_] == 0)
             {
-                array[y_, x_] = value;
+                array[y_][x_] = value;
             }
         }
         catch (Exception e)
@@ -119,12 +124,12 @@ public class CoordinateSystem
 
     public int[] GetRow(int y)
     {
-        int numCols = array.GetLength(1);
+        int numCols = array.Length;
         int[] rowValues = new int[numCols];
 
         for (int col = 0; col < numCols; col++)
         {
-            rowValues[col] = array[Math.Abs(yMin - y), col];
+            rowValues[col] = array[Math.Abs(yMin - y)][col];
         }
 
         return rowValues;
@@ -133,11 +138,12 @@ public class CoordinateSystem
     public void Render(ITestOutputHelper outputHelper)
     {
         var sb = new StringBuilder();
-        for (int y = 0; y < array.GetLength(0); y++)
+        var rowLength = array[0].Length;
+        for (int y = 0; y < array.Length; y++)
         {
-            for (int x = 0; x < array.GetLength(1); x++)
+            for (int x = 0; x < rowLength; x++)
             {
-                sb.Append(array[y, x]);
+                sb.Append(array[y][x]);
             }
 
             sb.AppendLine();
