@@ -38,8 +38,8 @@ public class Day15
 
     [Theory]
     [InlineData("day15.test.txt", 20, 56000011)]
-    //[InlineData("day15.txt", 4000000, 56000011)]
-    public async Task Part2(string fileName, int max, int expectedResult)
+    [InlineData("day15.txt", 4000000, 10826395253551)]
+    public async Task Part2(string fileName, int max, long expectedResult)
     {
         var input = await File.ReadAllLinesAsync(fileName);
         var regex = new Regex("x=(-?\\d+), y=(-?\\d+)");
@@ -54,41 +54,81 @@ public class Day15
         
         int counter = 0;
         Coordinate signal = default;
-        var coordinateSystem = new int[max + 1];
-        var sw = Stopwatch.StartNew();
+
         for (int y = 0; y <= max; y++)
         {
-            sw.Restart();
-            for (int i = 0; i < coordinateSystem.Length; i++)
-            {
-                coordinateSystem[i] = 0;
-            }
-            
-            sw.Stop();
-            var t3 = sw.Elapsed;
-            sw.Restart();
-            
+            var ranges = new List<(int start, int end)>();
             foreach (var reading in readings)
             {
-                reading.AddToCoordinateSystem(y, coordinateSystem);
-            }
-            sw.Stop();
-            var t1 = sw.Elapsed;
-            sw.Restart();
-            
-            for (int x = 0; x < coordinateSystem.Length; x++)
-            {
-                if (coordinateSystem[x] == 0)
+                if (reading.MinY <= y && reading.MaxY >= y)
                 {
-                    counter++;
-                    signal = new Coordinate(x, y);
+                    // reading has data within the given y row
+                    var sensor = reading.Sensor;
+                    var yDistance = Math.Abs(sensor.Y - y);
+                    var xWidth = reading.BeaconDistance - yDistance;
+                    var xStart = Math.Max(sensor.X - xWidth, 0);
+                    var xMax = Math.Min(sensor.X + xWidth, max);
+                    ranges.Add((xStart, xMax));
                 }
             }
-            sw.Stop();
-            var t2 = sw.Elapsed;
-        }
 
-        var frequency = (signal.X * 4000000) + signal.Y; 
+            var sortedByStart = ranges.OrderBy(t => t.start);
+            var sortedByEnd = ranges.OrderByDescending(t => t.end);
+
+            var lowestBlock = sortedByStart.First();
+            int lowerStart = lowestBlock.start;
+            if (lowerStart != 0)
+            {
+                signal = new Coordinate(0, y);
+                break;
+            }
+            //TODO if lowerStart != 0, we already found the right position
+            int lowerEnd = lowestBlock.end;
+            foreach (var block in sortedByStart.Skip(1))
+            {
+                if (block.start > lowerEnd + 1)
+                {
+                    // not adjecent
+                    break;
+                }
+                if (block.end > lowerEnd)
+                {
+                    lowerEnd = block.end;
+                }
+            }
+
+            var upperBlock = sortedByEnd.First();
+            var upperEnd = upperBlock.end;
+            if (upperEnd != max)
+            {
+                signal = new Coordinate(max, y);
+                break;
+            }
+            int upperStart = upperBlock.start;
+            foreach (var block in sortedByEnd.Skip(1))
+            {
+                if (block.end < upperStart - 1)
+                {
+                    // not adjecent
+                    break;
+                }
+
+                if (block.start < upperStart)
+                {
+                    upperStart = block.start;
+                }
+            }
+
+            if (upperStart > lowerEnd)
+            {
+                // found a gap
+                signal = new Coordinate(lowerEnd + 1, y);
+                break;
+            }
+        }
+        
+
+        long frequency = (signal.X * 4000000l) + signal.Y; 
         Assert.Equal(expectedResult, frequency);
     }
     
