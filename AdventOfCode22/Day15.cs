@@ -51,6 +51,9 @@ public class Day15
         Assert.Fail("Did not find a signal gap");
     }
 
+    /// <summary>
+    /// Try to merge signal ranges from the left and right. If there is an uncovered spot, the left and right ranges do not have an overlap
+    /// </summary>
     static bool TryFindSignalGap(int max, List<(int start, int end)> sensorRanges, int y, out Coordinate signal)
     {
         var sortedByStart = sensorRanges.OrderBy(t => t.start);
