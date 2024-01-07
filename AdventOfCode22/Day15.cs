@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 using Xunit.Abstractions;
@@ -37,7 +38,7 @@ public class Day15
 
     [Theory]
     [InlineData("day15.test.txt", 20, 56000011)]
-    [InlineData("day15.txt", 4000000, 56000011)] //requires too much memory
+    //[InlineData("day15.txt", 4000000, 56000011)]
     public async Task Part2(string fileName, int max, int expectedResult)
     {
         var input = await File.ReadAllLinesAsync(fileName);
@@ -53,20 +54,38 @@ public class Day15
         
         int counter = 0;
         Coordinate signal = default;
+        var coordinateSystem = new int[max + 1];
+        var sw = Stopwatch.StartNew();
         for (int y = 0; y <= max; y++)
         {
-            var coordinateSystem = new CoordinateSystem(0, max, y, y, false);
+            sw.Restart();
+            for (int i = 0; i < coordinateSystem.Length; i++)
+            {
+                coordinateSystem[i] = 0;
+            }
+            
+            sw.Stop();
+            var t3 = sw.Elapsed;
+            sw.Restart();
+            
             foreach (var reading in readings)
             {
                 reading.AddToCoordinateSystem(y, coordinateSystem);
             }
+            sw.Stop();
+            var t1 = sw.Elapsed;
+            sw.Restart();
             
-            var index = coordinateSystem.GetRowValues(y).ToList().FindIndex(v => v == 0);
-            if (index >= 0)
+            for (int x = 0; x < coordinateSystem.Length; x++)
             {
-                counter++;
-                signal = new Coordinate(index, y);
+                if (coordinateSystem[x] == 0)
+                {
+                    counter++;
+                    signal = new Coordinate(x, y);
+                }
             }
+            sw.Stop();
+            var t2 = sw.Elapsed;
         }
 
         var frequency = (signal.X * 4000000) + signal.Y; 
@@ -95,30 +114,59 @@ public class Day15
         public int MinY { get; }
         public int MaxY { get; }
 
-        public void AddToCoordinateSystem(int row, CoordinateSystem rowArray)
+        public void AddToCoordinateSystem(int rowNumber, int[] rowArray)
         {
-            if (row < MinY || row > MaxY)
+            if (rowNumber < MinY || rowNumber > MaxY)
             {
                 // this reading is not close to the desired row
                 return;
             }
 
-            var yDistance = Math.Abs(Sensor.Y - row);
+            var yDistance = Math.Abs(Sensor.Y - rowNumber);
             var xWidth = BeaconDistance - yDistance;
-            for (int x = Sensor.X - xWidth; x <= Sensor.X + xWidth; x++)
+            var xStart = Math.Max(Sensor.X - xWidth, 0);
+            var xMax = Math.Min(Sensor.X + xWidth + 1, rowArray.Length);
+            for (int x = xStart; x < xMax; x++)
             {
-                rowArray.TrySet(x, row, 1);
+                rowArray[x] = 1;
             }
         
             // mark sensors/beacons separately as they don't count towards the expected result
-            if (Sensor.Y == row)
+            if (Sensor.Y == rowNumber && Sensor.X >= 0 && Sensor.X < rowArray.Length)
             {
-                rowArray[Sensor.X, row] = 9;
+                rowArray[Sensor.X] = 9;
             }
 
-            if (Beacon.Y == row)
+            if (Beacon.Y == rowNumber && Beacon.X >= 0 && Beacon.X < rowArray.Length)
             {
-                rowArray[Beacon.X, row] = 8;
+                rowArray[Beacon.X] = 8;
+            }
+        }
+        
+        public void AddToCoordinateSystem(int rowNumber, CoordinateSystem rowArray)
+        {
+            if (rowNumber < MinY || rowNumber > MaxY)
+            {
+                // this reading is not close to the desired row
+                return;
+            }
+
+            var yDistance = Math.Abs(Sensor.Y - rowNumber);
+            var xWidth = BeaconDistance - yDistance;
+            for (int x = Sensor.X - xWidth; x <= Sensor.X + xWidth; x++)
+            {
+                rowArray.TrySet(x, rowNumber, 1);
+            }
+        
+            // mark sensors/beacons separately as they don't count towards the expected result
+            if (Sensor.Y == rowNumber)
+            {
+                rowArray[Sensor.X, rowNumber] = 9;
+            }
+
+            if (Beacon.Y == rowNumber)
+            {
+                rowArray[Beacon.X, rowNumber] = 8;
             }
         }
     }
@@ -134,10 +182,10 @@ public class CoordinateSystem
 {
     int[][] array;
     readonly int xMin;
-    readonly int yMin;
+    int yMin;
     readonly bool throwOnOutOfBoundAccess;
     readonly int xMax;
-    readonly int yMax;
+    int yMax;
 
     public CoordinateSystem(int xMin, int xMax, int yMin, int yMax, bool throwOnOutOfBoundAccess = true)
     {
@@ -159,6 +207,17 @@ public class CoordinateSystem
         {
             array[i] = new int[xWidth];
         }
+    }
+
+    public void Reset(int newY)
+    {
+        //TODO: very hack to verify if this really brings the necessary speedup
+        for (int i = 0; i < array[0].Length; i++)
+        {
+            array[0][i] = 0;
+        }
+
+        this.yMin = this.yMax = newY;
     }
 
     bool IsWithinBoundary(int x, int y)
