@@ -1,8 +1,6 @@
 using System.Diagnostics;
-using System.Text;
 using System.Text.RegularExpressions;
-using Xunit.Abstractions;
-
+using AdventOfCode22.Utils;
 using Coordinate = (int X, int Y);
 
 namespace AdventOfCode22;
@@ -12,27 +10,21 @@ public class Day15
     [Theory]
     [InlineData("day15.txt", 2000000, 4793062)]
     [InlineData("day15.test.txt", 10, 26)]
-    public async Task Part1(string fileName, int row, int expectedResult)
+    public async Task Part1(string fileName, int requestedRowNumber, int expectedResult)
     {
         var input = await File.ReadAllLinesAsync(fileName);
-        var regex = new Regex("x=(-?\\d+), y=(-?\\d+)");
-        
-        var readings = input.Select(line =>
-        {
-            var matches = regex.Matches(line);
-            var sensor = new Coordinate(int.Parse(matches[0].Groups[1].ValueSpan), int.Parse(matches[0].Groups[2].ValueSpan));
-            var beacon = new Coordinate(int.Parse(matches[1].Groups[1].ValueSpan), int.Parse(matches[1].Groups[2].ValueSpan));
-            return new Reading(sensor, beacon);
-        }).ToArray();
+        var readings = ParseSensorReadings(input);
 
-        var coordinateSystem = new CoordinateSystem(readings.Min(r => r.MinX), readings.Max(r => r.MaxX) + 1, row, row);
+        // somewhat tricky because the coordinates can be negative
+        var minX = readings.Min(r => r.MinX);
+        int rowWidth = Math.Abs(readings.Max(r => r.MaxX) - minX);
+        var row = new int[rowWidth + 1];
         foreach (var reading in readings)
         {
-            reading.AddToCoordinateSystem(row, coordinateSystem);
+            reading.AddToCoordinateSystem(requestedRowNumber, row, -minX);
         }
         
-        var total = coordinateSystem.GetRowValues(row).Where(x => x == 1).Sum();
-        
+        var total = row.Where(x => x == 1).Sum();
         Assert.Equal(expectedResult, total);
     }
 
@@ -42,8 +34,105 @@ public class Day15
     public async Task Part2(string fileName, int max, long expectedResult)
     {
         var input = await File.ReadAllLinesAsync(fileName);
-        var regex = new Regex("x=(-?\\d+), y=(-?\\d+)");
+        var readings = ParseSensorReadings(input);
         
+        for (int y = 0; y <= max; y++)
+        {
+            var sensorRanges = GetSensorRangesByRow(y, 0, max, readings);
+
+            if (TryFindSignalGap(max, sensorRanges, y, out Coordinate signalGap))
+            {
+                long frequency = (signalGap.X * 4000000l) + signalGap.Y; 
+                Assert.Equal(expectedResult, frequency);
+                return;
+            }
+        }
+        
+        Assert.Fail("Did not find a signal gap");
+    }
+
+    static bool TryFindSignalGap(int max, List<(int start, int end)> sensorRanges, int y, out Coordinate signal)
+    {
+        var sortedByStart = sensorRanges.OrderBy(t => t.start);
+        var sortedByEnd = sensorRanges.OrderByDescending(t => t.end);
+
+        var lowestBlock = sortedByStart.First();
+        if (lowestBlock.start != 0)
+        {
+            signal = new Coordinate(0, y);
+            return true;
+        }
+
+        int lowerEnd = lowestBlock.end;
+        foreach (var block in sortedByStart.Skip(1))
+        {
+            if (block.start > lowerEnd + 1)
+            {
+                // not adjecent
+                break;
+            }
+            if (block.end > lowerEnd)
+            {
+                lowerEnd = block.end;
+            }
+        }
+
+        var upperBlock = sortedByEnd.First();
+        if (upperBlock.end != max)
+        {
+            signal = new Coordinate(max, y);
+            return true;
+        }
+        
+        int upperStart = upperBlock.start;
+        foreach (var block in sortedByEnd.Skip(1))
+        {
+            if (block.end < upperStart - 1)
+            {
+                // not adjecent
+                break;
+            }
+
+            if (block.start < upperStart)
+            {
+                upperStart = block.start;
+            }
+        }
+
+        if (upperStart > lowerEnd)
+        {
+            // found a gap
+            signal = new Coordinate(lowerEnd + 1, y);
+            return true;
+        }
+
+        signal = default;
+        return false;
+    }
+
+    static List<(int start, int end)> GetSensorRangesByRow(int y, int from, int to, Reading[] readings)
+    {
+        var ranges = new List<(int start, int end)>();
+        foreach (var reading in readings)
+        {
+            // skip sensors outside of the requested row
+            if (reading.MinY > y || reading.MaxY < y) continue;
+            
+            // reading has data within the given y row
+            var sensor = reading.Sensor;
+            var yDistance = Math.Abs(sensor.Y - y);
+            var xWidth = reading.BeaconDistance - yDistance;
+            var xStart = Math.Max(sensor.X - xWidth, from);
+            var xEnd = Math.Min(sensor.X + xWidth, to);
+            ranges.Add((xStart, xEnd));
+        }
+
+        return ranges;
+    }
+
+    static Reading[] ParseSensorReadings(string[] input)
+    {
+        var regex = new Regex("x=(-?\\d+), y=(-?\\d+)");
         var readings = input.Select(line =>
         {
             var matches = regex.Matches(line);
@@ -51,87 +140,9 @@ public class Day15
             var beacon = new Coordinate(int.Parse(matches[1].Groups[1].ValueSpan), int.Parse(matches[1].Groups[2].ValueSpan));
             return new Reading(sensor, beacon);
         }).ToArray();
-        
-        int counter = 0;
-        Coordinate signal = default;
-
-        for (int y = 0; y <= max; y++)
-        {
-            var ranges = new List<(int start, int end)>();
-            foreach (var reading in readings)
-            {
-                if (reading.MinY <= y && reading.MaxY >= y)
-                {
-                    // reading has data within the given y row
-                    var sensor = reading.Sensor;
-                    var yDistance = Math.Abs(sensor.Y - y);
-                    var xWidth = reading.BeaconDistance - yDistance;
-                    var xStart = Math.Max(sensor.X - xWidth, 0);
-                    var xMax = Math.Min(sensor.X + xWidth, max);
-                    ranges.Add((xStart, xMax));
-                }
-            }
-
-            var sortedByStart = ranges.OrderBy(t => t.start);
-            var sortedByEnd = ranges.OrderByDescending(t => t.end);
-
-            var lowestBlock = sortedByStart.First();
-            int lowerStart = lowestBlock.start;
-            if (lowerStart != 0)
-            {
-                signal = new Coordinate(0, y);
-                break;
-            }
-            //TODO if lowerStart != 0, we already found the right position
-            int lowerEnd = lowestBlock.end;
-            foreach (var block in sortedByStart.Skip(1))
-            {
-                if (block.start > lowerEnd + 1)
-                {
-                    // not adjecent
-                    break;
-                }
-                if (block.end > lowerEnd)
-                {
-                    lowerEnd = block.end;
-                }
-            }
-
-            var upperBlock = sortedByEnd.First();
-            var upperEnd = upperBlock.end;
-            if (upperEnd != max)
-            {
-                signal = new Coordinate(max, y);
-                break;
-            }
-            int upperStart = upperBlock.start;
-            foreach (var block in sortedByEnd.Skip(1))
-            {
-                if (block.end < upperStart - 1)
-                {
-                    // not adjecent
-                    break;
-                }
-
-                if (block.start < upperStart)
-                {
-                    upperStart = block.start;
-                }
-            }
-
-            if (upperStart > lowerEnd)
-            {
-                // found a gap
-                signal = new Coordinate(lowerEnd + 1, y);
-                break;
-            }
-        }
-        
-
-        long frequency = (signal.X * 4000000l) + signal.Y; 
-        Assert.Equal(expectedResult, frequency);
+        return readings;
     }
-    
+
     public class Reading
     {
         public Reading(Coordinate sensor, Coordinate beacon)
@@ -154,36 +165,7 @@ public class Day15
         public int MinY { get; }
         public int MaxY { get; }
 
-        public void AddToCoordinateSystem(int rowNumber, int[] rowArray)
-        {
-            if (rowNumber < MinY || rowNumber > MaxY)
-            {
-                // this reading is not close to the desired row
-                return;
-            }
-
-            var yDistance = Math.Abs(Sensor.Y - rowNumber);
-            var xWidth = BeaconDistance - yDistance;
-            var xStart = Math.Max(Sensor.X - xWidth, 0);
-            var xMax = Math.Min(Sensor.X + xWidth + 1, rowArray.Length);
-            for (int x = xStart; x < xMax; x++)
-            {
-                rowArray[x] = 1;
-            }
-        
-            // mark sensors/beacons separately as they don't count towards the expected result
-            if (Sensor.Y == rowNumber && Sensor.X >= 0 && Sensor.X < rowArray.Length)
-            {
-                rowArray[Sensor.X] = 9;
-            }
-
-            if (Beacon.Y == rowNumber && Beacon.X >= 0 && Beacon.X < rowArray.Length)
-            {
-                rowArray[Beacon.X] = 8;
-            }
-        }
-        
-        public void AddToCoordinateSystem(int rowNumber, CoordinateSystem rowArray)
+        public void AddToCoordinateSystem(int rowNumber, int[] rowArray, int offset)
         {
             if (rowNumber < MinY || rowNumber > MaxY)
             {
@@ -195,129 +177,25 @@ public class Day15
             var xWidth = BeaconDistance - yDistance;
             for (int x = Sensor.X - xWidth; x <= Sensor.X + xWidth; x++)
             {
-                rowArray.TrySet(x, rowNumber, 1);
+                var index = x + offset;
+                // make sure to not overwrite sensor/beacon values
+                if (rowArray[index] == 0)
+                {
+                    rowArray[index] = 1;
+                }
             }
         
             // mark sensors/beacons separately as they don't count towards the expected result
+            // We don't need to check if we're overwriting something because sensor and beacon readings are guaranteed to not overlap
             if (Sensor.Y == rowNumber)
             {
-                rowArray[Sensor.X, rowNumber] = 9;
+                rowArray[Sensor.X + offset] = 9;
             }
 
             if (Beacon.Y == rowNumber)
             {
-                rowArray[Beacon.X, rowNumber] = 8;
+                rowArray[Beacon.X + offset] = 8;
             }
         }
-    }
-}
-
-
-/// <summary>
-/// Little helper class to work in a coordinate system more comfortably.
-/// Allows using X,Y coordinates without inverting them as typically required in two-dimensional arrays.
-/// Handles offsetting desired coordinates with the actual internal array structure.
-/// </summary>
-public class CoordinateSystem
-{
-    int[][] array;
-    readonly int xMin;
-    int yMin;
-    readonly bool throwOnOutOfBoundAccess;
-    readonly int xMax;
-    int yMax;
-
-    public CoordinateSystem(int xMin, int xMax, int yMin, int yMax, bool throwOnOutOfBoundAccess = true)
-    {
-        if (xMax < 0 || yMax < 0)
-        {
-            throw new NotSupportedException();
-        }
-        
-        var xWidth = Math.Abs(xMax - xMin) + 1;
-        var yWidth = Math.Abs(yMax - yMin) + 1;
-        this.xMin = xMin;
-        this.yMin = yMin;
-        this.xMax = xMax;
-        this.yMax = yMax;
-        this.throwOnOutOfBoundAccess = throwOnOutOfBoundAccess;
-
-        array = new int[yWidth][];
-        for(int i = 0; i < yWidth; i++)
-        {
-            array[i] = new int[xWidth];
-        }
-    }
-
-    public void Reset(int newY)
-    {
-        //TODO: very hack to verify if this really brings the necessary speedup
-        for (int i = 0; i < array[0].Length; i++)
-        {
-            array[0][i] = 0;
-        }
-
-        this.yMin = this.yMax = newY;
-    }
-
-    bool IsWithinBoundary(int x, int y)
-    {
-        if (throwOnOutOfBoundAccess)
-        {
-            return true; // array access itself will throw
-        }
-
-        return x >= xMin && x <= xMax && y >= yMin && y <= yMax;
-    }
-    
-    public int this[int x, int y]
-    {
-        get
-        {
-            return array[Math.Abs(yMin - y)][Math.Abs(xMin - x)];
-        }
-
-        set
-        {
-            if (IsWithinBoundary(x, y))
-            {
-                array[Math.Abs(yMin - y)][Math.Abs(xMin - x)] = value;
-            }
-        }
-    }
-
-    public void TrySet(int x, int y, int value)
-    {
-        if (IsWithinBoundary(x, y))
-        {
-            var y_ = Math.Abs(yMin - y);
-            var x_ = Math.Abs(xMin - x);
-            if (array[y_][x_] == 0)
-            {
-                array[y_][x_] = value;
-            }
-        }
-    }
-
-    public int[] GetRowValues(int y)
-    {
-        return array[Math.Abs(yMin - y)];
-    }
-
-    public void Render(ITestOutputHelper outputHelper)
-    {
-        var sb = new StringBuilder();
-        var rowLength = array[0].Length;
-        for (int y = 0; y < array.Length; y++)
-        {
-            for (int x = 0; x < rowLength; x++)
-            {
-                sb.Append(array[y][x]);
-            }
-
-            sb.AppendLine();
-        }
-
-        outputHelper.WriteLine(sb.ToString());
     }
 }
